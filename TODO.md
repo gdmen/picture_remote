@@ -1,0 +1,5 @@
+- threaded / subprocess uploads so that taking multiple pictures isn't so delayed
+- real logging with logrotation (write logs to dropbox in realtime?)
+- easier shutdown of pi
+- some indicator of when the system's warmed up? i.e. when pi is running + connected to network + python process is listening for keystrokes
+- add error handling for config parsing
