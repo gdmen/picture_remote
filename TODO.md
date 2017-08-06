@@ -3,3 +3,4 @@
 - easier shutdown of pi
 - some indicator of when the system's warmed up? i.e. when pi is running + connected to network + python process is listening for keystrokes
 - add error handling for config parsing
+- scripted install / update process (w/ input IP+pass config)
