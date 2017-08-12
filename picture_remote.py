@@ -3,10 +3,14 @@
 import dropbox
 import json
 import os
+from Queue import Queue
 import subprocess
+from threading import Thread
 import time
 
 CONF_PATH = "conf.json"
+
+UPLOAD_BUFFER_SIZE = 4
 
 WEBCAM_RESOLUTION = ""
 DROPBOX_ACCESS_TOKEN = ""
@@ -33,12 +37,12 @@ def take_picture():
     return path
 
 
-def process_picture(path):
-    print "Processing picture"
+def transform_picture(path):
+    print "Transforming picture"
     print "----- convert start -----"
     print subprocess.check_output(["convert", path, "-rotate", "-90", path])
     print "----- convert end -----"
-    print "Picture processed and saved to: %s" % path
+    print "Picture transformed and saved to: %s" % path
 
 
 def upload_picture(dbx, path):
@@ -56,12 +60,26 @@ def upload_picture(dbx, path):
     return True, None
 
 
+def handle_queue(queue, dbx):
+    while True:
+        path = queue.get()
+        print "Processing queue element %s" % path
+        transform_picture(path)
+        success, err = upload_picture(dbx, path)
+        if success:
+            print "Picture uploaded from: %s" % path
+            delete_local_picture(path)
+        else:
+            print "Couldn't upload from %s due to %s" % (path, err)
+        queue.task_done()
+
+
 def delete_local_picture(path):
-    print "Deleting local picture"
+    print "Deleting local picture %s" % path
     print "----- rm start -----"
     print subprocess.check_output(["rm", path])
     print "----- rm end -----"
-    print "Done deleting local picture"
+    print "Done deleting local picture %s" % path
     return
 
 def main():
@@ -72,17 +90,27 @@ def main():
     except dropbox.exceptions.AuthError as e:
         print "ERROR: Invalid access token; try re-generating an access token from the Dropbox dev website."
         return False
+
+    # Start upload thread
+    upload_queue = Queue(maxsize=0)
+    upload_thread = Thread(target=handle_queue, args=(upload_queue, dbx))
+    upload_thread.setDaemon(True)
+    upload_thread.start()
+
+    # Loop on stdin
+    upload_buffer = []
     while True:
-        raw_input("press ENTER to take a picture")
-        pass
+        raw_input("press ENTER to take a picture\n")
         path = take_picture()
-        process_picture(path)
-        success, err = upload_picture(dbx, path)
-        if success:
-            print "Picture uploaded from: %s" % path
-            delete_local_picture(path)
-        else:
-            print "Couldn't upload from %s due to %s" % (path, err)
+        print "Buffering %s" % path
+        upload_buffer.append(path)
+        print "Buffer length %d" % len(upload_buffer)
+        if len(upload_buffer) >= UPLOAD_BUFFER_SIZE:
+            for path in upload_buffer:
+                print "Enqueuing %s" % path
+                upload_queue.put(path)
+                print "Queue length %d" % upload_queue.qsize()
+            upload_buffer = []
 
 
 if __name__=="__main__":
