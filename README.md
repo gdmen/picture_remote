@@ -53,9 +53,7 @@ ssh into RPI:
 
 pip install -r requirements.txt
 
-sudo mv picture_remote.service /lib/systemd/system/
-
 vi ~/.bashrc:
 if [ $(tty) == /dev/tty1 ]; then
-  python /home/pi/picture_remote.py > /tmp/picture_remote.log
+  python /home/pi/picture_remote.py
 fi
